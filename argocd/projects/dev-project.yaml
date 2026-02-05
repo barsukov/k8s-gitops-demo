@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dev-project
+  namespace: argocd
+spec:
+  description: Development environment project
+
+  # Allow deployments to dev namespace only
+  destinations:
+    - namespace: dev
+      server: https://kubernetes.default.svc
+
+  # Allow any source repo (for local testing with file://)
+  sourceRepos:
+    - '*'
+
+  # Allow all cluster-scoped resources
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Allow all namespaced resources
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Deny specific resources for safety
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+
+  # Orphaned resources monitoring
+  orphanedResources:
+    warn: true

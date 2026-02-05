@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frontend-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-project
+
+  source:
+    repoURL: https://github.com/barsukov/k8s-gitops-demo.git
+    targetRevision: main
+    path: apps/frontend/k8s/overlays/production
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+
+  # NO automated sync for production - requires manual approval
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

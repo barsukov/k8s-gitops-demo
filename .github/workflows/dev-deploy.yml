@@ -1,0 +1,120 @@
+name: Deploy to Dev
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/frontend
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/api
+
+jobs:
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: meta
+        run: |
+          TAG="dev-$(date +%Y%m%d)-${GITHUB_SHA::7}"
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+          echo "Generated tag: $TAG"
+
+      # Build Frontend
+      - name: Build Frontend
+        working-directory: apps/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/frontend
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.FRONTEND_IMAGE }}:latest
+
+      # Build API
+      - name: Build API
+        working-directory: apps/api
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.API_IMAGE }}:latest
+
+  update-manifests:
+    name: Update Kubernetes Manifests
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update dev image tags
+        run: |
+          cd apps/frontend/k8s/overlays/dev
+          kustomize edit set image ghcr.io/barsukov/frontend=${{ env.FRONTEND_IMAGE }}:${{ needs.build-and-push.outputs.image-tag }}
+          
+          cd ../../../api/k8s/overlays/dev
+          kustomize edit set image ghcr.io/barsukov/api=${{ env.API_IMAGE }}:${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update dev images to ${{ needs.build-and-push.outputs.image-tag }}"
+            git push
+          fi

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: dev
+
+replicas:
+  - name: api
+    count: 1
+
+images:
+  - name: ghcr.io/barsukov/api
+    newTag: latest
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "development"
+    target:
+      kind: Deployment
+      name: api

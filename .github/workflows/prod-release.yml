@@ -1,0 +1,135 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/frontend
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/api
+
+jobs:
+  build-and-push:
+    name: Build and Push Production Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build Frontend
+      - name: Build Frontend
+        working-directory: apps/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/frontend
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.FRONTEND_IMAGE }}:prod-latest
+
+      # Build API
+      - name: Build API
+        working-directory: apps/api
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.API_IMAGE }}:prod-latest
+
+  update-manifests:
+    name: Update Production Manifests
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update production image tags
+        run: |
+          cd apps/frontend/k8s/overlays/production
+          kustomize edit set image ghcr.io/barsukov/frontend=${{ env.FRONTEND_IMAGE }}:${{ needs.build-and-push.outputs.version }}
+          
+          cd ../../../api/k8s/overlays/production
+          kustomize edit set image ghcr.io/barsukov/api=${{ env.API_IMAGE }}:${{ needs.build-and-push.outputs.version }}
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update production images to ${{ needs.build-and-push.outputs.version }}"
+            git push
+          fi
+
+      - name: Create summary
+        run: |
+          echo "## Production Release ${{ needs.build-and-push.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production manifests have been updated." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Open ArgoCD UI" >> $GITHUB_STEP_SUMMARY
+          echo "2. Find \`frontend-prod\` and \`api-prod\` applications" >> $GITHUB_STEP_SUMMARY
+          echo "3. They should show **OutOfSync** status" >> $GITHUB_STEP_SUMMARY
+          echo "4. Click **Sync** to deploy to production" >> $GITHUB_STEP_SUMMARY
