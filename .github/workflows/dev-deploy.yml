@@ -99,12 +99,14 @@ jobs:
         uses: imranismail/setup-kustomize@v2
 
       - name: Update dev image tags
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
         run: |
           cd apps/frontend/k8s/overlays/dev
-          kustomize edit set image ghcr.io/barsukov/frontend=${{ env.FRONTEND_IMAGE }}:${{ needs.build-and-push.outputs.image-tag }}
+          kustomize edit set image ghcr.io/barsukov/frontend=ghcr.io/barsukov/frontend:${IMAGE_TAG}
           
           cd ../../../api/k8s/overlays/dev
-          kustomize edit set image ghcr.io/barsukov/api=${{ env.API_IMAGE }}:${{ needs.build-and-push.outputs.image-tag }}
+          kustomize edit set image ghcr.io/barsukov/api=ghcr.io/barsukov/api:${IMAGE_TAG}
 
       - name: Commit and push changes
         run: |
