@@ -4,24 +4,25 @@ kind: Kustomization
 namespace: dev
 
 resources:
-  - ../../base
+- ../../base
 
 commonLabels:
   environment: dev
 
 replicas:
-  - name: api
-    count: 1
+- count: 1
+  name: api
 
 images:
-  - name: ghcr.io/barsukov/api
-    newTag: latest
+- name: ghcr.io/barsukov/api
+  newName: ghcr.io/barsukov/api
+  newTag: dev-20260206-2532d18
 
 patches:
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/env/0/value
-        value: "development"
-    target:
-      kind: Deployment
-      name: api
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/value
+      value: "development"
+  target:
+    kind: Deployment
+    name: api

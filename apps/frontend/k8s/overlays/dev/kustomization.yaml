@@ -4,15 +4,16 @@ kind: Kustomization
 namespace: dev
 
 resources:
-  - ../../base
+- ../../base
 
 commonLabels:
   environment: dev
 
 replicas:
-  - name: frontend
-    count: 1
+- count: 1
+  name: frontend
 
 images:
-  - name: ghcr.io/barsukov/frontend
-    newTag: latest
+- name: ghcr.io/barsukov/frontend
+  newName: ghcr.io/barsukov/frontend
+  newTag: dev-20260206-2532d18
