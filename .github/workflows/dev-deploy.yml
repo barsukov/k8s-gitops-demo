@@ -113,10 +113,10 @@ jobs:
             exit 1
           fi
           
-          cd apps/frontend/k8s/overlays/dev
+          cd $GITHUB_WORKSPACE/apps/frontend/k8s/overlays/dev
           kustomize edit set image ghcr.io/barsukov/frontend=ghcr.io/barsukov/frontend:${IMAGE_TAG}
           
-          cd ../../../api/k8s/overlays/dev
+          cd $GITHUB_WORKSPACE/apps/api/k8s/overlays/dev
           kustomize edit set image ghcr.io/barsukov/api=ghcr.io/barsukov/api:${IMAGE_TAG}
 
       - name: Commit and push changes
