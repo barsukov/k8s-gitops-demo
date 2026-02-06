@@ -102,6 +102,12 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
         run: |
+          echo "IMAGE_TAG is: ${IMAGE_TAG}"
+          if [ -z "${IMAGE_TAG}" ]; then
+            echo "ERROR: IMAGE_TAG is empty!"
+            exit 1
+          fi
+          
           cd apps/frontend/k8s/overlays/dev
           kustomize edit set image ghcr.io/barsukov/frontend=ghcr.io/barsukov/frontend:${IMAGE_TAG}
           
