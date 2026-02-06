@@ -17,6 +17,7 @@ spec:
       containers:
         - name: api
           image: ghcr.io/barsukov/api:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 3000
               name: http
