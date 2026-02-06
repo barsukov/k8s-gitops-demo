@@ -103,7 +103,9 @@ jobs:
 
       - name: Update dev image tags
         run: |
-          IMAGE_TAG=$(cat image-tag.txt)
+          ls -la
+          ls -la image-tag/ || true
+          IMAGE_TAG=$(cat image-tag/image-tag.txt)
           echo "IMAGE_TAG is: ${IMAGE_TAG}"
           if [ -z "${IMAGE_TAG}" ]; then
             echo "ERROR: IMAGE_TAG is empty!"
@@ -118,7 +120,7 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          IMAGE_TAG=$(cat image-tag.txt)
+          IMAGE_TAG=$(cat image-tag/image-tag.txt)
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
