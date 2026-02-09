@@ -14,6 +14,8 @@ spec:
       labels:
         app: api
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: api
           image: ghcr.io/barsukov/api:latest
