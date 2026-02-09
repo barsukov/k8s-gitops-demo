@@ -16,7 +16,7 @@ replicas:
 images:
 - name: ghcr.io/barsukov/api
   newName: ghcr.io/barsukov/api
-  newTag: dev-20260206-2532d18
+  newTag: dev-20260209-65026ef
 
 patches:
 - patch: |-

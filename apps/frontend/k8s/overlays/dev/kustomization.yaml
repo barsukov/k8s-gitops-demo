@@ -16,4 +16,4 @@ replicas:
 images:
 - name: ghcr.io/barsukov/frontend
   newName: ghcr.io/barsukov/frontend
-  newTag: dev-20260206-2532d18
+  newTag: dev-20260209-65026ef
